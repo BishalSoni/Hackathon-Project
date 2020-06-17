@@ -1,0 +1,310 @@
+def retailer_homePage():
+
+    def analysis_page():
+
+        def get_selected_date(selection):
+            selected_date = selection
+            print (selected_date)
+
+        def change_piechart():
+            z1 = con.cursor()
+            z1.execute("select sum(pprice) as inventory_total from inventory;")
+            f1 = z1.fetchone()
+
+            z2 = con.cursor()
+            z2.execute("select sum(pprice) as sales_total from inventory , sales where inventory.pid = sales.pid and sales.date = ? ;",(selected_date.get(),))
+            f2 = z2.fetchone()
+
+            for x in f1:
+                val1 = x
+
+            for y in f2:
+                val2 = y
+
+            labels = [val1,val2]
+
+            fig2 = matplotlib.figure.Figure(figsize=(4,3))
+            ax = fig2.add_subplot(111)
+            ax.pie([f1,f2],labels=labels,startangle=90)
+            ax.legend(["Total","Gain"])
+            circle=matplotlib.patches.Circle( (0,0), 0.7, color='white')
+            ax.add_artist(circle)
+            fig2.set_facecolor("#4fc3f7")
+
+            canvas2 = FigureCanvasTkAgg(fig2, master=rootan)
+            canvas2.get_tk_widget().place(x=270,y=330)
+            canvas2.draw()
+
+
+        rootan = Tk()
+        rootan.geometry("940x610+100+50")
+        rootan.title("Retailer Analysis")
+        rootan.config(bg="#4fc3f7")
+        selected_date = StringVar(rootan)
+
+        x = []
+        y = []
+
+        analysislabel = Label(rootan,text="Retailer Analysis",font=("Lobster Two",20,"bold"),fg="#ffffff",
+                              bg="#4fc3f7")
+        analysislabel.pack()
+        # navbar = Frame(rootan,bg="#212121",height=50,width=920)
+        # navbar.place(x=0,y=0)
+        g1 = con.cursor()
+        g1.execute("select pcategory as purchased from inventory,sales where inventory.pid = sales.pid GROUP by pcategory;")
+        fetch = g1.fetchall()
+
+        for data in fetch:
+            x.extend(data)
+
+        g2 = con.cursor()
+        g2.execute("select count(sales.pid) as purchased from inventory,sales where inventory.pid = sales.pid GROUP by pcategory;")
+        fet = g2.fetchall()
+
+        for dat in fet:
+            y.extend(dat)
+
+        fig = Figure(figsize=(5,3), dpi=90)
+        fig.suptitle('Category - wise', fontsize = 16)
+        axes = fig.add_subplot(111)
+        axes.plot(x,y)
+
+        canvas = FigureCanvasTkAgg(fig,rootan)
+        canvas.get_tk_widget().pack(side=LEFT,anchor=NW,pady=(20,0),padx=(10,0))
+        fig.set_facecolor("#81d4fa")
+
+        top5 = Label(rootan,text="Top 5 items :",font=("Oxygen",14,"bold"),fg="#212121",
+                                  bg="#4fc3f7")
+        top5.place(x=650,y=60)
+
+        c = con.cursor()
+        top = c.execute("select pname,pcategory,count(pname) from inventory,sales where inventory.pid = sales.pid group by pname order by count(pname) DESC LIMIT 5;")
+        fetc = c.fetchall()
+
+        tree = Treeview(rootan,columns=('pname','pcategory','count(pname)'))
+        tree.heading('pname', text='Product Name')
+        tree.heading('pcategory', text='Category')
+        tree.heading('count(pname)', text='Purchased count')
+        tree.column("pname",width=90)
+        tree.column("pcategory",width=90)
+        tree.column("count(pname)",width=90)
+        tree.pack(side=RIGHT,anchor=NE,pady=(52,0) , padx=(0,10))
+        tree['show'] = 'headings'
+
+        for data in fetc:
+            tree.insert('', 'end', values=(data))
+
+        options = []
+
+        d = con.cursor()
+        d.execute("select distinct(date) from sales;")
+        val = d.fetchall()
+
+        for data in val:
+            options.extend(data)
+
+        selected_date.set(options[1])
+
+        w = OptionMenu(rootan, selected_date,*options ,command = get_selected_date)
+        w.place(x=100,y=460)
+        w.configure(background="#ffffff",relief="flat")
+
+        date_show_pie = Button(rootan,text="Show",font=("Nunito",10,"bold"),bg="#ff5722",
+                              fg="#000000",relief="flat",width=8,activebackground="#ff5722",command = change_piechart)
+        date_show_pie.place(x=100,y=500)
+
+        rootan.mainloop()
+
+    def updateStock():
+        a=con.cursor()
+        a.execute("UPDATE stock SET total_quantity = ? WHERE pid =?",(updateNewQuantity.get(),updateStockId.get(),))
+        a.execute("UPDATE inventory SET pprice = ? WHERE pid = ?",(updateStockPrice.get(),updateStockId.get(),))
+        con.commit()
+        rootm.destroy()
+        retailer_homePage()
+
+
+    def addItem():
+        c=con.cursor()
+        x=con.cursor()
+        c.execute("INSERT INTO inventory (pname,pprice) VALUES(?,?)",(itemName.get(),itemPrice.get(),))
+        x.execute("INSERT INTO stock(total_quantity) VALUES(?)",(itemStock.get(),))
+        con.commit()
+        rootm.destroy()
+        retailer_homePage()
+
+    def removeItem():
+        a=con.cursor()
+        b=con.cursor()
+        a.execute("DELETE FROM inventory where pid = ?",(removeItemId.get(),))
+        b.execute("DELETE FROM stock where pid = ?",(removeItemId.get(),))
+        con.commit()
+        rootm.destroy()
+        retailer_homePage()
+
+
+    rootm = Tk()
+    rootm.geometry("920x570+100+50")
+    rootm.title("Home")
+    rootm.config(bg="#ffe0b2")
+
+    itemName = StringVar(rootm)
+    itemPrice = IntVar(rootm)
+    itemStock = IntVar(rootm)
+    removeItemId = IntVar(rootm)
+    updateStockId = IntVar(rootm)
+    updateNewQuantity = IntVar(rootm)
+    updateStockPrice = IntVar(rootm)
+
+    searchVar = StringVar(rootm)
+    treeVals = []
+
+    c=con.cursor()
+    def command(self, *args):
+        selections = []
+
+        for i in range(len(treeVals)):
+            if searchVar.get() != "" and searchVar.get() == treeVals[i][:len(searchVar.get())]:
+                selections.append(ids[i])
+                print(selections)#if it matches it appends the id to the selections list
+
+        tree.selection_set(selections) # Highlights the name in treeview
+
+    c.execute("SELECT inventory.pid,pname,pprice,total_quantity FROM `inventory`,`stock`  where stock.pid=inventory.pid ORDER BY inventory.pid ASC")
+    fetch = c.fetchall()
+
+    tree = Treeview(rootm,columns=('pid','pname','pprice','total_quantity'))
+    tree.heading('pid', text='Product ID')
+    tree.heading('pname', text='Product Name')
+    tree.heading('pprice', text='Price')
+    tree.heading('total_quantity', text='Stock Quantity')
+    tree.column("pid",width=90)
+    tree.column("pname",width=90)
+    tree.column("pprice",width=90)
+    tree.column("total_quantity",width=90)
+    tree.pack(side=RIGHT,anchor=NE,fill='y',pady=(52,0))
+    tree['show'] = 'headings'
+
+    ids = []
+    for data in fetch:
+        ids.append(tree.insert('', 'end', values=(data)))
+
+    for child in tree.get_children():
+        treeVals.append(tree.item(child)['values'][1])
+
+    navbar = Frame(rootm,bg="#212121",height=50,width=920)
+    navbar.place(x=0,y=0)
+
+    searchVar.trace("w",command)
+    search =  Entry(rootm,width=34,relief="flat",bg="#ffffff",textvariable=searchVar,
+                      font=("Oxygen",10))
+    search.insert(0,'Quick Search')
+    search.place(x=500,y=15)
+
+    print(ids)
+    print(treeVals)
+
+    analysisbtn = Button(navbar,text="Analysis",font=("Noto sans",12,"bold"),fg="#ffffff",
+                        bg="#2979ff",relief = "flat",command= lambda: analysis_page())
+    analysisbtn.place(x=230,y=5)
+
+    outbtn= Button(navbar,text="Back",font=("Noto sans",12,"bold"),fg="#ffffff",
+                        bg="#c62828",relief = "flat",command=rootm.destroy)
+    outbtn.place(x=830,y=5)
+
+    addFrame = Frame(rootm,bg="#03a9f4",height=160,width=520)
+    addFrame.place(x=10,y=55)
+
+    removeFrame = Frame(rootm,bg="#03a9f4",height=160,width=520)
+    removeFrame.place(x=10,y=230)
+
+    updateFrame = Frame(rootm,bg="#03a9f4",height=160,width=520)
+    updateFrame.place(x=10,y=405)
+
+#-----------------------------------------Update Stock Button------------------------------------------------------------------------------------------------
+
+    update_button = Button(updateFrame, text='Update',font=("Nunito",10,"italic"),bg="#ffb300",
+                  fg="#000000",relief="flat",width=7,activebackground="#ffb300",command = lambda :  updateStock())
+    update_button.place(x=450,y=125)
+
+    updateHeadingLabel = Label(updateFrame,text="Update Item :",font=("Roboto",12,"underline"),
+                fg="#212121",bg="#03a9f4")
+    updateHeadingLabel.place(x=5,y=10)
+
+    updateitemLabel = Label(updateFrame,text="Enter item id  : ",font=("Noto sans",10,"bold"),
+                fg="#212121",bg="#03a9f4")
+    updateitemLabel.place(x=5,y=70)
+
+    updateitemEntry =  Entry(updateFrame,width=34,relief="flat",bg="#ffffff",textvariable=updateStockId,
+                  font=("Oxygen",10))
+    updateitemEntry.place(x=200,y=70)
+
+    updateitemLabel = Label(updateFrame,text="Enter item price  : ",font=("Noto sans",10,"bold"),
+                    fg="#212121",bg="#03a9f4")
+    updateitemLabel.place(x=5,y=100)
+
+    updateitemEntry =  Entry(updateFrame,width=34,relief="flat",bg="#ffffff",textvariable=updateStockPrice,
+                      font=("Oxygen",10))
+    updateitemEntry.place(x=200,y=100)
+
+    updateitemLabel = Label(updateFrame,text="Enter  new quantity  : ",font=("Noto sans",10,"bold"),
+                fg="#212121",bg="#03a9f4")
+    updateitemLabel.place(x=5,y=130)
+
+    updateitemEntry =  Entry(updateFrame,width=34,relief="flat",bg="#ffffff",textvariable=updateNewQuantity,
+                  font=("Oxygen",10))
+    updateitemEntry.place(x=200,y=130)
+
+
+#-----------------------------------------Add Button-------------------------------------------------------------------------------------------
+
+    add_button = Button(addFrame, text='Add',font=("Nunito",10,"italic"),bg="#ffb300",
+                  fg="#000000",relief="flat",width=7,activebackground="#ffb300",command = lambda :  addItem())
+    add_button.place(x=450,y=125)
+
+    addLabel = Label(addFrame,text="Add New Item : ",font=("Roboto",12,"underline"),
+                fg="#212121",bg="#03a9f4")
+    addLabel.place(x=5,y=10)
+
+    newitemLabel = Label(addFrame,text="New Item Name : ",font=("Noto sans",10,"bold"),
+                fg="#212121",bg="#03a9f4")
+    newitemLabel.place(x=5,y=40)
+
+    newitemEntry =  Entry(addFrame,width=34,relief="flat",bg="#ffffff",textvariable=itemName,
+                  font=("Oxygen",10))
+    newitemEntry.place(x=200,y=40)
+
+    newitemPriceLabel = Label(addFrame,text="New Item Price : ",font=("Noto sans",10,"bold"),
+                fg="#212121",bg="#03a9f4")
+    newitemPriceLabel.place(x=5,y=70)
+
+    newitemPriceEntry =  Entry(addFrame,width=34,relief="flat",bg="#ffffff",textvariable=itemPrice,
+                  font=("Oxygen",10))
+    newitemPriceEntry.place(x=200,y=70)
+
+    newitemStockLabel = Label(addFrame,text="New Item Quantity/Stock : ",font=("Noto sans",10,"bold"),
+                fg="#212121",bg="#03a9f4")
+    newitemStockLabel.place(x=5,y=100)
+
+    newitemStockEntry =  Entry(addFrame,width=34,relief="flat",bg="#ffffff",textvariable=itemStock,
+                  font=("Oxygen",10))
+    newitemStockEntry.place(x=200,y=100)
+
+#-------------------------------------------------Remove Button-------------------------------------------------------------------------------------------
+    remove_button = Button(removeFrame, text='Remove',font=("Nunito",10,"italic"),bg="#ffb300",
+                  fg="#000000",relief="flat",width=7,activebackground="#ffb300",command = lambda :  removeItem())
+    remove_button.place(x=450,y=125)
+
+    removeHeadingLabel = Label(removeFrame,text="Remove item :",font=("Roboto",12,"underline"),
+                fg="#212121",bg="#03a9f4")
+    removeHeadingLabel.place(x=5,y=10)
+
+    removeitemLabel = Label(removeFrame,text="Enter item id  : ",font=("Noto sans",10,"bold"),
+                fg="#212121",bg="#03a9f4")
+    removeitemLabel.place(x=5,y=70)
+
+    removeitemEntry =  Entry(removeFrame,width=34,relief="flat",bg="#ffffff",textvariable=removeItemId,
+                  font=("Oxygen",10))
+    removeitemEntry.place(x=200,y=70)
+
+    rootm.mainloop()

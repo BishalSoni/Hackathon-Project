@@ -1,0 +1,13 @@
+def sql_connection():
+
+    try:
+
+        con = sqlite3.connect('Self_Checkout.db')
+
+        print("Connection successfull!")
+
+        return con
+
+    except Error:
+
+        print("Error")
